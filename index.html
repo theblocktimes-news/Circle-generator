@@ -2,187 +2,564 @@
 <html lang="es">
 <head>
   <meta charset="utf-8" />
-  <title>Generador de círculos para Minecraft</title>
+  <title>Generador de círculos para Minecraft — TbT avanzado</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Generador avanzado de círculos y elipses para Minecraft por TbT. Exporta PNG y CSV, builder mode, stacks y más." />
   <style>
-    :root { color-scheme: light dark; }
-    body { font-family: system-ui, sans-serif; margin: 20px; }
-    .panel { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
-    label { display: flex; gap: 8px; align-items: center; }
-    input[type="number"] { width: 90px; }
-    canvas { border: 1px solid #888; background: #f7f7f7; image-rendering: pixelated; }
-    .legend { display: flex; gap: 16px; margin-top: 8px; align-items: center; }
+    :root {
+      color-scheme: light dark;
+      --bg: #f7f7f7;
+      --fg: #222;
+      --muted: #666;
+      --panel: #ffffff;
+      --accent: #2b8a3e; /* filled */
+      --outline: #0b7285; /* outline */
+      --grid: #cccccc;
+      --border: #ddd;
+      --highlight: #f59f00;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #101114;
+        --fg: #e6e6e6;
+        --muted: #a8a8a8;
+        --panel: #16181c;
+        --grid: #2a2a2a;
+        --border: #2a2a2a;
+      }
+    }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg); color: var(--fg);
+    }
+    header {
+      padding: 16px 20px; border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; background: var(--panel); z-index: 10;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.4rem; }
+    .sub { color: var(--muted); font-size: 0.95rem; }
+    main { padding: 16px 20px; display: grid; gap: 16px; grid-template-columns: 1fr; }
+    .panel {
+      display: grid; gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      background: var(--panel); padding: 12px; border: 1px solid var(--border); border-radius: 8px;
+    }
+    fieldset { border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
+    legend { padding: 0 6px; color: var(--muted); }
+    label { display: grid; gap: 6px; margin: 4px 0; }
+    input[type="number"], input[type="text"], select {
+      padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border); background: transparent; color: var(--fg);
+    }
+    input[type="color"] { border: none; width: 36px; height: 28px; padding: 0; background: transparent; }
+    input[type="range"] { width: 100%; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn {
+      padding: 8px 12px; border: 1px solid var(--border);
+      border-radius: 8px; background: var(--panel); color: var(--fg); cursor: pointer;
+    }
+    .btn.primary { border-color: var(--outline); color: #fff; background: var(--outline); }
+    .btn.success { border-color: var(--accent); color: #fff; background: var(--accent); }
+    .btn.warn { border-color: var(--highlight); color: #000; background: var(--highlight); }
+    .legend {
+      display: flex; gap: 16px; align-items: center; flex-wrap: wrap; color: var(--muted);
+    }
     .swatch { width: 16px; height: 16px; border: 1px solid #000; }
-    .grid-swatch { background: #dcdcdc; }
-    .block-swatch { background: #2b8a3e; }
-    .border-swatch { background: #0b7285; }
-    .info { margin-top: 8px; font-size: 0.95rem; }
-    button { padding: 8px 12px; }
-    .tips { margin-top: 8px; color: #555; }
+    .grid-swatch { background: var(--grid); }
+    .filled-swatch { background: var(--accent); }
+    .outline-swatch { background: var(--outline); }
+    .info { font-size: 0.95rem; color: var(--muted); }
+    .canvas-wrap { overflow: auto; border: 1px solid var(--border); border-radius: 8px; background: var(--panel); }
+    canvas { display: block; image-rendering: pixelated; }
+    .notice { font-size: 0.9rem; color: var(--muted); }
+    .split {
+      display: grid; gap: 16px; grid-template-columns: 1fr;
+    }
+    @media (min-width: 980px) {
+      .split { grid-template-columns: 380px 1fr; }
+    }
+    .kpi { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; }
+    .tile { border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--panel); }
+    .tile b { display: block; margin-bottom: 4px; }
+    .builder { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .footer { padding: 10px 20px; border-top: 1px solid var(--border); color: var(--muted); }
+    .small { font-size: 0.85rem; }
   </style>
 </head>
 <body>
-  <h1>Generador de círculos para Minecraft</h1>
+<header>
+  <h1>Generador de círculos para Minecraft — TbT</h1>
+  <div class="sub">Diámetro 1–512 • Contorno/Relleno • PNG/CSV • Builder Mode • Stacks • Elipse/Anillo/Semicírculo • Modo oscuro</div>
+</header>
 
-  <div class="panel">
-    <label>
-      <span>Diámetro (1–512):</span>
-      <input id="diameter" type="number" min="1" max="512" value="32" />
-    </label>
-    <label>
-      <span>Modo:</span>
-      <select id="mode">
-        <option value="outline">Contorno</option>
-        <option value="filled">Relleno</option>
-      </select>
-    </label>
-    <label>
-      <span>Mostrar cuadrícula:</span>
-      <input id="showGrid" type="checkbox" checked />
-    </label>
-    <label>
-      <span>Escala:</span>
-      <input id="scale" type="range" min="4" max="24" value="12" />
-      <span id="scaleVal">12px/bloque</span>
-    </label>
-    <button id="renderBtn">Generar</button>
-    <button id="downloadBtn">Descargar PNG</button>
-  </div>
+<main class="split">
+  <section class="panel">
+    <fieldset>
+      <legend>Dimensiones</legend>
+      <label>
+        <span>Diámetro principal (1–512):</span>
+        <input id="diameter" type="number" min="1" max="512" value="45" />
+      </label>
+      <label>
+        <span>Elipse: ancho × alto (opcional)</span>
+        <div class="row">
+          <input id="ellipseW" type="number" min="1" max="512" placeholder="Ancho (W)" />
+          <input id="ellipseH" type="number" min="1" max="512" placeholder="Alto (H)" />
+        </div>
+        <span class="notice small">Si ambos valores están presentes, se dibuja elipse; si no, se usa el diámetro.</span>
+      </label>
+      <label class="row">
+        <span>Semicírculo / Elipse parcial:</span>
+        <select id="semiside">
+          <option value="none">Completo</option>
+          <option value="top">Superior</option>
+          <option value="bottom">Inferior</option>
+          <option value="left">Izquierda</option>
+          <option value="right">Derecha</option>
+        </select>
+      </label>
+    </fieldset>
 
-  <div class="legend">
-    <div class="swatch grid-swatch" title="Cuadrícula"></div><span>Cuadrícula</span>
-    <div class="swatch block-swatch" title="Bloque (relleno)"></div><span>Bloque</span>
-    <div class="swatch border-swatch" title="Bloque (contorno)"></div><span>Contorno</span>
-  </div>
+    <fieldset>
+      <legend>Modo de dibujo</legend>
+      <label class="row">
+        <span>Tipo:</span>
+        <select id="mode">
+          <option value="outline">Contorno</option>
+          <option value="filled">Relleno</option>
+          <option value="ring">Anillo</option>
+        </select>
+      </label>
+      <div id="ringControls" style="display:none;">
+        <label class="row">
+          <span>Radio interior (en bloques):</span>
+          <input id="innerRadius" type="number" min="0" max="512" value="10" />
+        </label>
+      </div>
+    </fieldset>
 
-  <div class="info" id="infoText">Bloques: —</div>
-  <canvas id="canvas" width="768" height="768"></canvas>
-  <div class="tips">
-    Consejo: el valor es el diámetro en bloques, como en los generadores clásicos. Si necesitas un círculo que cubra de x=a a x=b, recuerda sumar 1 al contar bloques para abarcar ambos extremos.
-  </div>
+    <fieldset>
+      <legend>Visual</legend>
+      <label class="row">
+        <span>Color contorno:</span>
+        <input id="colorOutline" type="color" value="#0b7285" />
+        <span>Color relleno:</span>
+        <input id="colorFilled" type="color" value="#2b8a3e" />
+        <span>Color fondo:</span>
+        <input id="colorBg" type="color" value="#f7f7f7" />
+      </label>
+      <label class="row">
+        <span>Tipo de bloque (etiqueta):</span>
+        <select id="blockType">
+          <option value="Stone">Stone</option>
+          <option value="Copper">Copper</option>
+          <option value="Glass">Glass</option>
+          <option value="Wood">Wood</option>
+          <option value="Custom">Custom</option>
+        </select>
+      </label>
+      <label class="row">
+        <span>Mostrar cuadrícula:</span>
+        <input id="showGrid" type="checkbox" checked />
+      </label>
+      <label class="row">
+        <span>Escala:</span>
+        <input id="scale" type="range" min="6" max="32" value="22" />
+        <span id="scaleVal">22px/bloque</span>
+      </label>
+    </fieldset>
 
-  <script>
-    const diameterInput = document.getElementById('diameter');
-    const modeSelect = document.getElementById('mode');
-    const showGridChk = document.getElementById('showGrid');
-    const scaleRange = document.getElementById('scale');
-    const scaleVal = document.getElementById('scaleVal');
-    const renderBtn = document.getElementById('renderBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const infoText = document.getElementById('infoText');
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
+    <fieldset>
+      <legend>Acciones</legend>
+      <div class="row">
+        <button class="btn primary" id="renderBtn">Generar</button>
+        <button class="btn success" id="downloadPngBtn">Descargar PNG</button>
+        <button class="btn" id="downloadCsvBtn">Descargar CSV</button>
+        <button class="btn warn" id="resetBuilderBtn">Reiniciar Builder</button>
+      </div>
+      <div class="legend small">
+        <div class="swatch grid-swatch" title="Cuadrícula"></div><span>Cuadrícula</span>
+        <div class="swatch filled-swatch" title="Bloque (relleno)"></div><span>Bloque</span>
+        <div class="swatch outline-swatch" title="Bloque (contorno)"></div><span>Contorno</span>
+      </div>
+    </fieldset>
+  </section>
 
-    function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+  <section>
+    <div class="kpi">
+      <div class="tile"><b>Bloques totales</b><span id="blocksCount">—</span></div>
+      <div class="tile"><b>Stacks de 64</b><span id="stacks64">—</span></div>
+      <div class="tile"><b>Stacks de 16</b><span id="stacks16">—</span></div>
+      <div class="tile"><b>Dimensión</b><span id="dimLabel">—</span></div>
+      <div class="tile"><b>Modo</b><span id="modeLabel">—</span></div>
+      <div class="tile"><b>Bloque</b><span id="blockLabel">—</span></div>
+    </div>
 
-    function drawGrid(cell) {
-      ctx.strokeStyle = '#cccccc';
-      ctx.lineWidth = 1;
-      const w = canvas.width, h = canvas.height;
-      ctx.beginPath();
-      for (let x = 0; x <= w; x += cell) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
-      for (let y = 0; y <= h; y += cell) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
-      ctx.stroke();
-    }
+    <div class="info" id="infoText">Listo para generar.</div>
+    <div class="canvas-wrap">
+      <canvas id="canvas" width="880" height="880"></canvas>
+    </div>
 
-    // Determina si la celda (i,j) está en el contorno o dentro usando distancia al centro
-    function computeMask(d, mode) {
-      const cx = (d - 1) / 2;
-      const cy = (d - 1) / 2;
-      const r = d / 2; // diámetro -> radio
-      const mask = Array.from({ length: d }, () => Array(d).fill(false));
-      let count = 0;
+    <div class="builder">
+      <fieldset>
+        <legend>Builder Mode</legend>
+        <div class="row">
+          <span>Orden:</span>
+          <select id="builderOrder">
+            <option value="cw">Clockwise</option>
+            <option value="ccw">Counter-clockwise</option>
+            <option value="radial">Radial (desde el centro)</option>
+          </select>
+          <button class="btn" id="nextStepBtn">Siguiente bloque</button>
+        </div>
+        <div class="small notice">Resalta el siguiente bloque sugerido para colocar. Ideal para construcción paso a paso.</div>
+        <div class="tile"><b>Progreso</b><span id="progressLabel">0 / 0</span></div>
+      </fieldset>
 
-      for (let i = 0; i < d; i++) {
-        for (let j = 0; j < d; j++) {
-          const dx = i - cx;
-          const dy = j - cy;
-          const dist = Math.sqrt(dx*dx + dy*dy);
-          // Umbral de contorno para pixel-perfect en rejilla
-          const onBorder = Math.abs(dist - r) <= 0.5;
-          const inside = dist <= r + 0.5;
+      <fieldset>
+        <legend>Exportación de coordenadas</legend>
+        <div class="small">CSV incluye: x, y, tipo, diámetro/elipse, modo, bloque, fecha.</div>
+        <div id="coordsPreview" class="tile small" style="max-height: 180px; overflow:auto;"></div>
+      </fieldset>
+    </div>
+  </section>
+</main>
 
-          const use = (mode === 'outline') ? onBorder : inside;
-          if (use) { mask[i][j] = true; count++; }
+<footer class="footer">
+  <div>TbT • Generador avanzado — sirve bajo dominio: cgenerator.the-block-times.com (configurar CNAME en DNS y dominio en GitHub Pages)</div>
+</footer>
+
+<script>
+  const diameterInput = document.getElementById('diameter');
+  const ellipseWInput = document.getElementById('ellipseW');
+  const ellipseHInput = document.getElementById('ellipseH');
+  const semisideSelect = document.getElementById('semiside');
+  const modeSelect = document.getElementById('mode');
+  const innerRadiusInput = document.getElementById('innerRadius');
+  const ringControls = document.getElementById('ringControls');
+
+  const colorOutline = document.getElementById('colorOutline');
+  const colorFilled = document.getElementById('colorFilled');
+  const colorBg = document.getElementById('colorBg');
+  const blockTypeSelect = document.getElementById('blockType');
+
+  const showGridChk = document.getElementById('showGrid');
+  const scaleRange = document.getElementById('scale');
+  const scaleVal = document.getElementById('scaleVal');
+
+  const renderBtn = document.getElementById('renderBtn');
+  const downloadPngBtn = document.getElementById('downloadPngBtn');
+  const downloadCsvBtn = document.getElementById('downloadCsvBtn');
+  const resetBuilderBtn = document.getElementById('resetBuilderBtn');
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+
+  const infoText = document.getElementById('infoText');
+  const blocksCountEl = document.getElementById('blocksCount');
+  const stacks64El = document.getElementById('stacks64');
+  const stacks16El = document.getElementById('stacks16');
+  const dimLabelEl = document.getElementById('dimLabel');
+  const modeLabelEl = document.getElementById('modeLabel');
+  const blockLabelEl = document.getElementById('blockLabel');
+
+  const builderOrderSelect = document.getElementById('builderOrder');
+  const nextStepBtn = document.getElementById('nextStepBtn');
+  const progressLabel = document.getElementById('progressLabel');
+
+  const coordsPreview = document.getElementById('coordsPreview');
+
+  let builderIndex = 0;
+  let currentCoords = []; // {x,y,type:'outline'|'filled'}
+  let currentMeta = {};   // metadata snapshot
+
+  function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+
+  function drawGrid(cell, w, h) {
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid').trim() || '#cccccc';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let x = 0; x <= w; x += cell) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+    for (let y = 0; y <= h; y += cell) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+    ctx.stroke();
+  }
+
+  // Mask generator supporting circle, ellipse, ring, and semicircle sides
+  function generateCoords() {
+    const mode = modeSelect.value;
+    const semiside = semisideSelect.value;
+    const blockType = blockTypeSelect.value;
+
+    let useEllipse = false;
+    let W = parseInt(ellipseWInput.value || '0', 10);
+    let H = parseInt(ellipseHInput.value || '0', 10);
+    W = clamp(W, 0, 512); H = clamp(H, 0, 512);
+
+    let D = parseInt(diameterInput.value || '1', 10);
+    D = clamp(D, 1, 512);
+
+    if (W > 0 && H > 0) useEllipse = true;
+    if (!useEllipse) { W = D; H = D; }
+
+    // Radii
+    const rx = W / 2.0, ry = H / 2.0;
+    const cx = (W - 1) / 2.0, cy = (H - 1) / 2.0;
+
+    // For ring mode
+    let inner = parseFloat(innerRadiusInput.value || '0');
+    inner = clamp(inner, 0, Math.min(rx, ry) - 0.5);
+
+    const coords = [];
+
+    // iterate grid
+    for (let i = 0; i < W; i++) {
+      for (let j = 0; j < H; j++) {
+        const dx = i - cx;
+        const dy = j - cy;
+
+        // distance for circle/ellipse using normalized radius (ellipse)
+        // For ellipse, use implicit equation: (dx^2 / rx^2) + (dy^2 / ry^2)
+        const ell = (rx > 0 && ry > 0) ? ((dx*dx)/(rx*rx) + (dy*dy)/(ry*ry)) : 0;
+        const distCircle = Math.sqrt(dx*dx + dy*dy);
+
+        let onBorder = false;
+        let inside = false;
+
+        if (W === H) {
+          // treat as circle for tight border threshold
+          const r = rx;
+          onBorder = Math.abs(distCircle - r) <= 0.5;
+          inside = distCircle <= r + 0.5;
+        } else {
+          // ellipse thresholds (border band around ell==1)
+          onBorder = Math.abs(ell - 1.0) <= 0.06; // band ~6%
+          inside = ell <= 1.0 + 0.06;
+        }
+
+        // ring mode: keep cells where outside inner radius and inside outer
+        let useCell = false;
+        if (mode === 'outline') useCell = onBorder;
+        else if (mode === 'filled') useCell = inside;
+        else if (mode === 'ring') {
+          if (W === H) {
+            const rOuter = rx;
+            const rInner = inner;
+            useCell = (distCircle >= rInner - 0.5) && (distCircle <= rOuter + 0.5);
+          } else {
+            // ellipse ring using normalized radii; approximate inner as scaled
+            const rIx = inner, rIy = inner * (ry / rx);
+            const ellInner = (dx*dx)/(rIx*rIx) + (dy*dy)/(rIy*rIy);
+            useCell = (ellInner >= 1.0 - 0.06) && (ell <= 1.0 + 0.06);
+          }
+        }
+
+        // Semicircle filter
+        if (useCell && semiside !== 'none') {
+          if (semiside === 'top' && j > cy) useCell = false;
+          if (semiside === 'bottom' && j < cy) useCell = false;
+          if (semiside === 'left' && i > cx) useCell = false;
+          if (semiside === 'right' && i < cx) useCell = false;
+        }
+
+        if (useCell) {
+          coords.push({ x: i, y: j, type: (mode === 'outline' ? 'outline' : 'filled'), block: blockType });
         }
       }
-      return { mask, count };
     }
 
-    function autoScaleForDiameter(d) {
-      // Intenta encajar el círculo en el lienzo
-      const maxCanvas = Math.min(window.innerWidth - 40, 1024);
-      canvas.width = maxCanvas;
-      canvas.height = maxCanvas;
-      const target = Math.floor(maxCanvas / d);
-      return clamp(target, parseInt(scaleRange.min), parseInt(scaleRange.max));
+    const meta = {
+      diameter: D,
+      ellipseW: W, ellipseH: H,
+      mode,
+      innerRadius: inner,
+      semiside,
+      block: blockType,
+      timestamp: new Date().toISOString()
+    };
+
+    return { coords, meta };
+  }
+
+  function autoCanvasSize(W, H, cell) {
+    const targetW = W * cell;
+    const targetH = H * cell;
+    // Cap canvas to viewport but allow scroll
+    const maxEdge = Math.min(Math.max(window.innerWidth - 160, 560), 1400);
+    const w = clamp(targetW, 200, Math.max(targetW, 200));
+    const h = clamp(targetH, 200, Math.max(targetH, 200));
+    canvas.width = clamp(w, 200, maxEdge);
+    canvas.height = clamp(h, 200, maxEdge);
+    return { cw: canvas.width, ch: canvas.height };
+  }
+
+  function render() {
+    let cell = parseInt(scaleRange.value || '22', 10);
+    scaleVal.textContent = `${cell}px/bloque`;
+
+    const { coords, meta } = generateCoords();
+    currentCoords = coords;
+    currentMeta = meta;
+
+    const W = meta.ellipseW;
+    const H = meta.ellipseH;
+    const sizePxW = W * cell;
+    const sizePxH = H * cell;
+
+    // canvas size to fit design (with scroll)
+    canvas.width = sizePxW;
+    canvas.height = sizePxH;
+
+    // fill background
+    ctx.fillStyle = colorBg.value;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // grid
+    if (showGridChk.checked) drawGrid(cell, canvas.width, canvas.height);
+
+    // draw blocks
+    const fillColor = colorFilled.value;
+    const outlineColor = colorOutline.value;
+    ctx.lineWidth = Math.max(0.5, cell * 0.05);
+
+    for (const c of coords) {
+      const x = c.x * cell;
+      const y = c.y * cell;
+      ctx.fillStyle = (c.type === 'outline') ? outlineColor : fillColor;
+      ctx.fillRect(x, y, cell, cell);
+
+      // subtle cell border for clarity
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.strokeRect(x, y, cell, cell);
     }
 
-    function render() {
-      let d = parseInt(diameterInput.value, 10);
-      d = clamp(d, 1, 512);
-      diameterInput.value = d;
+    // KPIs
+    const total = coords.length;
+    blocksCountEl.textContent = String(total);
+    stacks64El.textContent = `${Math.floor(total / 64)} stacks + ${total % 64}`;
+    stacks16El.textContent = `${Math.floor(total / 16)} stacks + ${total % 16}`;
+    dimLabelEl.textContent = (W === H) ? `Diámetro: ${W}` : `Elipse: ${W}×${H}`;
+    modeLabelEl.textContent = meta.mode + (meta.mode === 'ring' ? ` (inner=${meta.innerRadius})` : '') + (meta.semiside !== 'none' ? ` • ${meta.semiside}` : '');
+    blockLabelEl.textContent = meta.block;
 
-      // Ajuste de escala (auto si no cabe)
-      let cell = parseInt(scaleRange.value, 10);
-      const needed = d * cell;
-      if (needed > canvas.width || needed > canvas.height) {
-        cell = autoScaleForDiameter(d);
-        scaleRange.value = cell;
-      }
-      scaleVal.textContent = `${cell}px/bloque`;
+    infoText.textContent = `Bloques: ${total} • ${W === H ? 'Diámetro' : 'Elipse'} ${W === H ? W : W+'×'+H} • Modo: ${meta.mode} • Bloque: ${meta.block}`;
 
-      // Redimensiona canvas al tamaño necesario
-      const sizePx = d * cell;
-      canvas.width = sizePx;
-      canvas.height = sizePx;
+    // Builder reset
+    builderIndex = 0;
+    progressLabel.textContent = `0 / ${total}`;
 
-      // Limpia
-      ctx.fillStyle = '#f7f7f7';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // Coordinates preview (first 100)
+    const preview = coords.slice(0, 100).map(c => `${c.x},${c.y},${c.type}`).join('\n');
+    coordsPreview.textContent = preview.length ? preview : '(sin coordenadas)';
+  }
 
-      // Dibuja cuadrícula si procede
-      if (showGridChk.checked) drawGrid(cell);
+  function nextBuilderStep() {
+    if (!currentCoords.length) return;
+    const order = builderOrderSelect.value;
+    let idx = builderIndex;
 
-      // Calcula máscara y pinta
-      const { mask, count } = computeMask(d, modeSelect.value);
-      infoText.textContent = `Bloques: ${count} (${modeSelect.value === 'outline' ? 'contorno' : 'relleno'}) • Diámetro: ${d}`;
-
-      for (let i = 0; i < d; i++) {
-        for (let j = 0; j < d; j++) {
-          if (!mask[i][j]) continue;
-          const x = i * cell, y = j * cell;
-          ctx.fillStyle = (modeSelect.value === 'outline') ? '#0b7285' : '#2b8a3e';
-          ctx.fillRect(x, y, cell, cell);
-          // Opcional: borde de cada bloque para claridad
-          ctx.strokeStyle = '#555';
-          ctx.lineWidth = 0.5;
-          ctx.strokeRect(x, y, cell, cell);
-        }
-      }
+    // Order transforms
+    if (order === 'radial') {
+      // sort by distance to center
+      const W = currentMeta.ellipseW, H = currentMeta.ellipseH;
+      const cx = (W - 1) / 2.0, cy = (H - 1) / 2.0;
+      currentCoords = [...currentCoords].sort((a, b) => {
+        const da = Math.hypot(a.x - cx, a.y - cy);
+        const db = Math.hypot(b.x - cx, b.y - cy);
+        return da - db;
+      });
+    } else {
+      // approximate cw/ccw by angle
+      const W = currentMeta.ellipseW, H = currentMeta.ellipseH;
+      const cx = (W - 1) / 2.0, cy = (H - 1) / 2.0;
+      currentCoords = [...currentCoords].sort((a, b) => {
+        const aa = Math.atan2(a.y - cy, a.x - cx);
+        const bb = Math.atan2(b.y - cy, b.x - cx);
+        return (order === 'cw') ? (aa - bb) : (bb - aa);
+      });
     }
 
-    function downloadPNG() {
-      const a = document.createElement('a');
-      a.download = `minecraft-circle-d${diameterInput.value}-${modeSelect.value}.png`;
-      a.href = canvas.toDataURL('image/png');
-      a.click();
-    }
+    // highlight current block
+    const cell = parseInt(scaleRange.value || '22', 10);
+    const c = currentCoords[idx];
+    if (!c) return;
 
-    renderBtn.addEventListener('click', render);
-    downloadBtn.addEventListener('click', downloadPNG);
-    scaleRange.addEventListener('input', () => {
-      scaleVal.textContent = `${scaleRange.value}px/bloque`;
-      render();
-    });
-    diameterInput.addEventListener('input', render);
-    modeSelect.addEventListener('change', render);
-    showGridChk.addEventListener('change', render);
-
-    // Primera render
+    // redraw base
     render();
-    // Re-render en cambio de tamaño de ventana
-    window.addEventListener('resize', render);
-  </script>
+
+    // highlight block
+    const x = c.x * cell, y = c.y * cell;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--highlight').trim() || '#f59f00';
+    ctx.lineWidth = Math.max(2, cell * 0.15);
+    ctx.strokeRect(x + 1, y + 1, cell - 2, cell - 2);
+
+    builderIndex = idx + 1;
+    progressLabel.textContent = `${builderIndex} / ${currentCoords.length}`;
+  }
+
+  function downloadPNG() {
+    const a = document.createElement('a');
+    const meta = currentMeta;
+    const name = (meta.ellipseW === meta.ellipseH)
+      ? `circle-d${meta.ellipseW}-${meta.mode}`
+      : `ellipse-${meta.ellipseW}x${meta.ellipseH}-${meta.mode}`;
+    a.download = `minecraft-${name}-${meta.block}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  }
+
+  function downloadCSV() {
+    const meta = currentMeta;
+    const header = [
+      'x','y','type','block','diameter','ellipseW','ellipseH','mode','innerRadius','semiside','timestamp'
+    ];
+    const rows = currentCoords.map(c => [
+      c.x, c.y, c.type, meta.block,
+      (meta.ellipseW === meta.ellipseH ? meta.ellipseW : ''),
+      meta.ellipseW, meta.ellipseH, meta.mode, meta.innerRadius, meta.semiside, meta.timestamp
+    ]);
+    const csv = [header.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const name = (meta.ellipseW === meta.ellipseH)
+      ? `circle-d${meta.ellipseW}-${meta.mode}`
+      : `ellipse-${meta.ellipseW}x${meta.ellipseH}-${meta.mode}`;
+    a.download = `coords-${name}-${meta.block}.csv`;
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Events
+  renderBtn.addEventListener('click', render);
+  downloadPngBtn.addEventListener('click', downloadPNG);
+  downloadCsvBtn.addEventListener('click', downloadCSV);
+  resetBuilderBtn.addEventListener('click', () => { builderIndex = 0; progressLabel.textContent = `0 / ${currentCoords.length}`; render(); });
+
+  nextStepBtn.addEventListener('click', nextBuilderStep);
+
+  scaleRange.addEventListener('input', () => { scaleVal.textContent = `${scaleRange.value}px/bloque`; render(); });
+  diameterInput.addEventListener('input', render);
+  ellipseWInput.addEventListener('input', render);
+  ellipseHInput.addEventListener('input', render);
+  semisideSelect.addEventListener('change', render);
+  modeSelect.addEventListener('change', () => {
+    ringControls.style.display = (modeSelect.value === 'ring') ? 'block' : 'none';
+    render();
+  });
+  innerRadiusInput.addEventListener('input', render);
+  showGridChk.addEventListener('change', render);
+  colorOutline.addEventListener('input', render);
+  colorFilled.addEventListener('input', render);
+  colorBg.addEventListener('input', render);
+  blockTypeSelect.addEventListener('change', render);
+  builderOrderSelect.addEventListener('change', () => { builderIndex = 0; progressLabel.textContent = `0 / ${currentCoords.length}`; render(); });
+
+  window.addEventListener('resize', render);
+
+  // Initial render
+  render();
+</script>
 </body>
 </html>
